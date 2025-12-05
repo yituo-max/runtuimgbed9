@@ -613,6 +613,171 @@
             transform: scale(1.02);
         }
 
+        /* 多图片预览区域样式 */
+        .multiple-preview-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: rgba(30, 30, 40, 0.5);
+            border-radius: 8px;
+            border: 1px solid rgba(100, 100, 120, 0.3);
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(100, 100, 120, 0.2);
+        }
+
+        .preview-title {
+            color: #b0b0b0;
+            font-size: 14px;
+        }
+
+        .toggle-preview-btn {
+            background: none;
+            border: 1px solid rgba(100, 100, 120, 0.3);
+            color: #b0b0b0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .toggle-preview-btn:hover {
+            background-color: rgba(64, 158, 255, 0.2);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .preview-thumbnails {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 5px;
+        }
+
+        .preview-thumbnails.list-mode {
+            flex-direction: column;
+            max-height: 300px;
+            gap: 5px;
+        }
+
+        .preview-thumbnail {
+            width: 80px;
+            height: 80px;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+            background-color: rgba(20, 20, 30, 0.7);
+        }
+
+        .preview-thumbnails.list-mode .preview-thumbnail {
+            width: 100%;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            padding: 5px;
+            gap: 10px;
+        }
+
+        .preview-thumbnail:hover {
+            transform: scale(1.05);
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .preview-thumbnails.list-mode .preview-thumbnail:hover {
+            transform: none;
+        }
+
+        .preview-thumbnail.active {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(64, 158, 255, 0.5);
+        }
+
+        .preview-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .preview-thumbnails.list-mode .preview-thumbnail img {
+            width: 40px;
+            height: 30px;
+            flex-shrink: 0;
+        }
+
+        .preview-thumbnail:hover img {
+            transform: scale(1.1);
+        }
+
+        .preview-thumbnails.list-mode .preview-thumbnail:hover img {
+            transform: none;
+        }
+
+        .preview-thumbnail .thumbnail-index {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        .preview-thumbnails.list-mode .thumbnail-index {
+            position: static;
+            background-color: transparent;
+            color: #b0b0b0;
+            font-size: 12px;
+            padding: 0;
+            border-radius: 0;
+            font-weight: normal;
+            flex-shrink: 0;
+            width: 20px;
+        }
+
+        .preview-thumbnail .thumbnail-name {
+            display: none;
+            color: #e0e0e0;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-grow: 1;
+        }
+
+        .preview-thumbnails.list-mode .thumbnail-name {
+            display: block;
+        }
+
+        .result-count {
+            font-size: 14px;
+            color: #b0b0b0;
+            margin-left: 10px;
+        }
+
+        .result-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(100, 100, 120, 0.2);
+        }
+
         .url-container {
             background-color: rgba(30, 30, 40, 0.85);
             padding: 15px;
@@ -1445,8 +1610,20 @@
                         <div class="result-header">
                             <div class="result-icon">✓</div>
                             <div class="result-title">上传成功</div>
+                            <div class="result-count" id="resultCount" style="display: none;">共上传 <span id="uploadCount">0</span> 张图片</div>
                         </div>
+                        
+                        <!-- 单个图片预览区域 -->
                         <img id="resultImage" class="result-image" alt="上传的图片">
+                        
+                        <!-- 多图片预览区域 -->
+                        <div id="multiplePreviewContainer" class="multiple-preview-container" style="display: none;">
+                            <div class="preview-header">
+                                <span class="preview-title">点击缩略图查看链接</span>
+                                <button id="togglePreviewMode" class="toggle-preview-btn" title="切换预览模式">网格视图</button>
+                            </div>
+                            <div class="preview-thumbnails" id="previewThumbnails"></div>
+                        </div>
                         
                         <div class="url-container">
                             <div class="url-label">直接链接:</div>
@@ -1470,6 +1647,11 @@
                                 <input type="text" id="htmlUrl" class="url-input" readonly>
                                 <button class="copy-btn" data-target="htmlUrl">复制</button>
                             </div>
+                        </div>
+                        
+                        <div class="result-actions">
+                            <button id="copyAllUrls" class="btn btn-secondary" style="display: none;">复制所有链接</button>
+                            <button id="viewInGallery" class="btn btn-primary">在图片库中查看</button>
                         </div>
                     </div>
                 </section>
@@ -2709,9 +2891,27 @@
                                 }
                             }
 
-                            // 清空预览
-                            previewImage.src = '';
-                            previewContainer.style.display = 'none';
+                            // 显示结果容器
+                            resultContainer.style.display = 'block';
+                            
+                            // 如果上传了多张图片，显示多图片预览区域
+                            if (successCount > 1) {
+                                displayMultiplePreview();
+                                // 隐藏单个图片预览
+                                document.getElementById('resultImage').style.display = 'none';
+                            } else if (successCount === 1) {
+                                // 单张图片，显示传统预览
+                                const lastImage = imageGallery[imageGallery.length - 1];
+                                document.getElementById('resultImage').src = lastImage.url;
+                                document.getElementById('resultImage').style.display = 'block';
+                                document.getElementById('multiplePreviewContainer').style.display = 'none';
+                                
+                                // 设置URL
+                                document.getElementById('directUrl').value = lastImage.url;
+                                document.getElementById('markdownUrl').value = `![${lastImage.name}](${lastImage.url})`;
+                                document.getElementById('htmlUrl').value = `<img src="${lastImage.url}" alt="${lastImage.name}">`;
+                            }
+                            
                             return;
                         }
 
@@ -2800,6 +3000,98 @@
 
                     // 开始上传第一个文件
                     uploadNextFile(0);
+                }
+
+                // 显示多图片预览
+                function displayMultiplePreview() {
+                    const multiplePreviewContainer = document.getElementById('multiplePreviewContainer');
+                    const previewThumbnails = document.getElementById('previewThumbnails');
+                    const resultCount = document.getElementById('resultCount');
+                    const uploadCount = document.getElementById('uploadCount');
+                    const copyAllUrlsBtn = document.getElementById('copyAllUrls');
+                    
+                    // 获取最近上传的图片
+                    const recentImages = imageGallery.slice(-successCount);
+                    
+                    // 显示上传数量
+                    uploadCount.textContent = successCount;
+                    resultCount.style.display = 'inline';
+                    
+                    // 显示复制所有链接按钮
+                    copyAllUrlsBtn.style.display = 'inline-block';
+                    
+                    // 清空现有缩略图
+                    previewThumbnails.innerHTML = '';
+                    
+                    // 创建缩略图
+                    recentImages.forEach((image, index) => {
+                        const thumbnail = document.createElement('div');
+                        thumbnail.className = 'preview-thumbnail';
+                        if (index === 0) thumbnail.classList.add('active'); // 默认选中第一张
+                        
+                        thumbnail.innerHTML = `
+                            <span class="thumbnail-index">${index + 1}</span>
+                            <img src="${image.url}" alt="${image.name}">
+                            <span class="thumbnail-name">${image.name}</span>
+                        `;
+                        
+                        // 添加点击事件
+                        thumbnail.addEventListener('click', function() {
+                            // 移除所有活动状态
+                            document.querySelectorAll('.preview-thumbnail').forEach(t => {
+                                t.classList.remove('active');
+                            });
+                            
+                            // 添加当前活动状态
+                            this.classList.add('active');
+                            
+                            // 更新URL输入框
+                            updateUrlInputs(image);
+                        });
+                        
+                        previewThumbnails.appendChild(thumbnail);
+                    });
+                    
+                    // 显示多图片预览容器
+                    multiplePreviewContainer.style.display = 'block';
+                    
+                    // 默认显示第一张图片的URL
+                    if (recentImages.length > 0) {
+                        updateUrlInputs(recentImages[0]);
+                    }
+                    
+                    // 添加切换预览模式功能
+                    document.getElementById('togglePreviewMode').addEventListener('click', function() {
+                        const isListMode = previewThumbnails.classList.contains('list-mode');
+                        
+                        if (isListMode) {
+                            previewThumbnails.classList.remove('list-mode');
+                            this.textContent = '列表视图';
+                        } else {
+                            previewThumbnails.classList.add('list-mode');
+                            this.textContent = '网格视图';
+                        }
+                    });
+                    
+                    // 添加复制所有链接功能
+                    copyAllUrlsBtn.addEventListener('click', function() {
+                        const allUrls = recentImages.map(img => img.url).join('\n');
+                        copyToClipboard(allUrls);
+                        showNotification(`已复制 ${recentImages.length} 个图片链接`, 'success');
+                    });
+                    
+                    // 添加查看图片库功能
+                    document.getElementById('viewInGallery').addEventListener('click', function() {
+                        // 切换到图片库标签页
+                        document.querySelector('[data-tab="gallery"]').click();
+                    });
+                }
+                
+                // 更新URL输入框
+                function updateUrlInputs(image) {
+                    document.getElementById('directUrl').value = image.url;
+                    document.getElementById('markdownUrl').value = `![${image.name}](${image.url})`;
+                    document.getElementById('htmlUrl').value = `<img src="${image.url}" alt="${image.name}">`;
                 }
 
                 // 渲染图片库
