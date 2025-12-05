@@ -1,6 +1,6 @@
 // 从Telegram同步所有图片到数据库的API端点
 const https = require('https');
-const { addImage, getImageByFileId, updateImage, getAllTelegramImages, deleteTelegramImagesNotInList, getImages, getStats } = require('./kv-database');
+const { addImage, getImageByFileId, updateImage, getAllTelegramImages, deleteTelegramImagesNotInList, getImages, getStats, getLastUpdateId, setLastUpdateId } = require('./kv-database');
 const { verifyAdminToken } = require('./auth-middleware');
 
 // 从环境变量获取配置
@@ -230,11 +230,12 @@ async function syncPhotosToDatabase(photos) {
     console.log('新同步策略：删除Telegram中已不存在的图片，保留已存在图片的分类信息');
     
     try {
-        // 1. 获取当前Telegram中的所有图片fileId
-        const currentFileIds = photos.map(photo => photo.file_id);
-        console.log(`当前Telegram中有 ${currentFileIds.length} 张图片`);
+        // 1. 同步前状态检查
+        console.log('=== 同步前状态检查 ===');
+        const stats = await getStats();
+        console.log(`数据库中共有 ${stats.totalImages} 张图片`);
         
-        // 2. 获取数据库中所有Telegram图片
+        // 获取数据库中所有Telegram图片
         const existingTelegramImages = await getAllTelegramImages();
         console.log(`数据库中有 ${existingTelegramImages.length} 张Telegram图片`);
         
@@ -246,13 +247,38 @@ async function syncPhotosToDatabase(photos) {
             });
         }
         
-        // 3. 创建一个映射，存储已存在图片的分类信息
+        // 获取当前Telegram中的所有图片fileId
+        const currentFileIds = photos.map(photo => photo.file_id);
+        console.log(`当前Telegram中有 ${currentFileIds.length} 张图片`);
+        
+        // 打印Telegram中的图片，用于调试
+        if (photos.length > 0) {
+            console.log('Telegram中的图片列表:');
+            photos.forEach((photo, index) => {
+                console.log(`  ${index + 1}. FileId: ${photo.file_id}, Type: ${photo.type}`);
+            });
+        }
+        
+        // 检查是否存在数据不一致的情况
+        if (existingTelegramImages.length > 0 && photos.length === 0) {
+            console.log('警告：数据库中有Telegram图片但Telegram中没有获取到任何图片');
+            console.log('这可能是API访问问题或同步逻辑问题');
+        }
+        
+        if (existingTelegramImages.length === 0 && photos.length > 0) {
+            console.log('信息：数据库中没有Telegram图片但Telegram中获取到了图片');
+            console.log('这可能是首次同步或之前清空了数据库');
+        }
+        
+        console.log('=== 状态检查完成，开始同步 ===');
+        
+        // 2. 创建一个映射，存储已存在图片的分类信息
         const existingImageCategories = {};
         for (const img of existingTelegramImages) {
             existingImageCategories[img.fileId] = img.category;
         }
         
-        // 4. 删除不在当前Telegram列表中的图片
+        // 3. 删除不在当前Telegram列表中的图片
         if (existingTelegramImages.length > 0) {
             console.log(`开始检查需要删除的图片...`);
             console.log(`当前Telegram图片fileId列表: [${currentFileIds.join(', ')}]`);
@@ -263,7 +289,7 @@ async function syncPhotosToDatabase(photos) {
             console.log('数据库中没有Telegram图片，跳过删除步骤');
         }
         
-        // 5. 处理当前Telegram中的图片
+        // 4. 处理当前Telegram中的图片
         for (const photo of photos) {
             try {
                 // 检查图片是否已经存在于数据库中
@@ -303,7 +329,27 @@ async function syncPhotosToDatabase(photos) {
             }
         }
         
+        // 5. 同步后状态检查
+        console.log('=== 同步后状态检查 ===');
+        const newStats = await getStats();
+        console.log(`同步后数据库中共有 ${newStats.totalImages} 张图片`);
+        
+        const newTelegramImages = await getAllTelegramImages();
+        console.log(`同步后数据库中有 ${newTelegramImages.length} 张Telegram图片`);
+        
         console.log(`同步完成，共处理 ${photos.length} 张图片，新增 ${syncedCount} 张，跳过 ${skippedCount} 张，删除 ${deletedCount} 张`);
+        
+        // 检查同步结果是否符合预期
+        if (syncedCount === 0 && skippedCount === photos.length && deletedCount === 0) {
+            console.log('信息：所有图片都已存在于数据库中，无需同步');
+        } else if (syncedCount > 0) {
+            console.log(`信息：成功同步了 ${syncedCount} 张新图片`);
+        }
+        
+        if (deletedCount > 0) {
+            console.log(`信息：删除了 ${deletedCount} 张已不存在的图片`);
+        }
+        
         return { syncedCount, updatedCount: 0, skippedCount, deletedCount };
     } catch (error) {
         console.error('同步过程中发生错误:', error);
@@ -429,17 +475,17 @@ async function getChatPhotos() {
                                 } else {
                                     console.error('获取频道信息失败:', chatResponse.description);
                                     // 如果获取频道信息失败，尝试使用getUpdates作为后备方案
-                                    await getUpdatesFallback(photos, resolve, reject);
+                                    await getUpdatesFallback(photos, resolve, reject, true);
                                 }
                             } else {
                                 console.error(`获取频道信息HTTP错误: ${chatRes.statusCode}`);
                                 // 如果获取频道信息失败，尝试使用getUpdates作为后备方案
-                                await getUpdatesFallback(photos, resolve, reject);
+                                    await getUpdatesFallback(photos, resolve, reject, true);
                             }
                         } catch (error) {
                             console.error('解析频道信息响应失败:', error.message);
                             // 如果解析失败，尝试使用getUpdates作为后备方案
-                            await getUpdatesFallback(photos, resolve, reject);
+                                    await getUpdatesFallback(photos, resolve, reject, true);
                         }
                     });
                 });
@@ -447,20 +493,20 @@ async function getChatPhotos() {
                 chatReq.on('error', (error) => {
                     console.error('获取频道信息请求失败:', error);
                     // 如果请求失败，尝试使用getUpdates作为后备方案
-                    getUpdatesFallback(photos, resolve, reject);
+                    getUpdatesFallback(photos, resolve, reject, true);
                 });
                 
                 chatReq.on('timeout', () => {
                     chatReq.destroy();
                     console.error('获取频道信息请求超时');
                     // 如果请求超时，尝试使用getUpdates作为后备方案
-                    getUpdatesFallback(photos, resolve, reject);
+                    getUpdatesFallback(photos, resolve, reject, true);
                 });
                 
                 chatReq.end();
             } else {
                 // 对于普通聊天，使用getUpdates方法
-                getUpdatesFallback(photos, resolve, reject);
+            getUpdatesFallback(photos, resolve, reject, false);
             }
         } catch (error) {
             reject(error);
@@ -471,188 +517,18 @@ async function getChatPhotos() {
 // 获取频道历史消息的辅助函数
 async function getChannelHistoryMessages(photos, resolve, reject) {
     try {
-        console.log(`开始获取频道 ${TELEGRAM_CHAT_ID} 的历史消息...`);
+        console.log(`开始获取频道 ${TELEGRAM_CHAT_ID} 的消息...`);
         
-        // 对于私人频道，优先使用getChatHistory方法
-        console.log('尝试使用getChatHistory方法获取私人频道历史消息...');
-        await tryGetChatHistory(photos, resolve, reject);
+        // 注意：Telegram Bot API有以下限制：
+        // 1. getUpdates方法只能获取新的消息更新，无法获取历史消息
+        // 2. 如果机器人长时间未运行，可能会错过一些消息（通常有24-48小时的限制）
+        // 3. 没有直接的方法可以获取任意时间点的历史消息
+        console.log('使用getUpdates方法获取消息更新（仅限新消息，无法获取历史消息）...');
+        await getUpdatesFallback(photos, resolve, reject, true);
     } catch (error) {
-        console.error('getChatHistory方法失败，尝试searchChatHistory方法:', error.message);
-        console.log('尝试使用searchChatHistory方法获取历史消息...');
-        
-        // 如果getChatHistory失败，尝试searchChatHistory方法
-        try {
-            await trySearchChatHistory(photos, resolve, reject);
-        } catch (searchError) {
-            console.log(`searchChatHistory方法也失败: ${searchError.message}`);
-            
-            // 如果两种方法都失败，尝试使用getUpdates作为后备方案
-            console.log('尝试使用getUpdates方法作为后备方案...');
-            await getUpdatesFallback(photos, resolve, reject);
-        }
+        console.error('getUpdates方法失败:', error.message);
+        reject(error);
     }
-}
-
-// 尝试使用searchChatHistory方法
-async function trySearchChatHistory(photos, resolve, reject) {
-    return new Promise(async (res, rej) => {
-        try {
-            let offset = 0; // 从0开始，获取最新的消息
-            let totalFetched = 0;
-            let hasMore = true;
-            const limit = 100; // 每次获取100条消息
-            
-            console.log(`开始使用searchChatHistory方法获取频道历史消息...`);
-            
-            while (hasMore) {
-                // 对于私人频道，使用正确的API参数
-                const searchOptions = {
-                    hostname: 'api.telegram.org',
-                    port: 443,
-                    path: `/bot${TELEGRAM_BOT_TOKEN}/searchChatHistory?chat_id=${TELEGRAM_CHAT_ID}&query=""&limit=${limit}&offset=${offset}`,
-                    method: 'GET',
-                    timeout: 15000 // 15秒超时
-                };
-                
-                console.log(`正在搜索频道历史消息，offset: ${offset}, limit: ${limit}`);
-                const searchResponse = await makeRequest(searchOptions);
-                
-                if (searchResponse.ok && searchResponse.result && searchResponse.result.messages) {
-                    const messages = searchResponse.result.messages;
-                    console.log(`通过searchChatHistory获取到 ${messages.length} 条历史消息 (offset: ${offset})`);
-                    
-                    // 打印前几条消息的信息用于调试
-                    if (messages.length > 0) {
-                        console.log(`第一条消息: ID=${messages[0].message_id}, 日期=${new Date(messages[0].date * 1000).toISOString()}, 类型=${messages[0].photo ? 'photo' : messages[0].document ? 'document' : 'other'}`);
-                        if (messages.length > 1) {
-                            console.log(`最后一条消息: ID=${messages[messages.length-1].message_id}, 日期=${new Date(messages[messages.length-1].date * 1000).toISOString()}, 类型=${messages[messages.length-1].photo ? 'photo' : messages[messages.length-1].document ? 'document' : 'other'}`);
-                        }
-                    }
-                    
-                    // 处理历史消息
-                    await processMessages(messages, photos);
-                    
-                    totalFetched += messages.length;
-                    
-                    // 检查是否还有更多消息
-                    if (messages.length < limit) {
-                        hasMore = false;
-                        console.log('已获取所有搜索结果');
-                    } else {
-                        // 使用最后一条消息的ID作为下一次请求的offset
-                        if (messages.length > 0) {
-                            offset = messages[messages.length - 1].message_id;
-                        } else {
-                            offset += limit;
-                        }
-                        
-                        // 避免无限循环，设置最大获取数量
-                        if (totalFetched >= 1000) {
-                            console.log('已达到最大获取数量限制 (1000条消息)');
-                            hasMore = false;
-                        }
-                    }
-                } else {
-                    hasMore = false;
-                    if (!searchResponse.ok) {
-                        console.error('searchChatHistory方法失败:', searchResponse.description);
-                        rej(new Error(searchResponse.description));
-                        return;
-                    }
-                }
-            }
-            
-            console.log(`searchChatHistory总共获取了 ${totalFetched} 条历史消息，其中包含 ${photos.length} 张图片`);
-            resolve(photos);
-            res();
-        } catch (error) {
-            console.error('searchChatHistory请求失败:', error);
-            rej(error);
-        }
-    });
-}
-
-// 尝试使用getChatHistory方法
-async function tryGetChatHistory(photos, resolve, reject) {
-    return new Promise(async (res, rej) => {
-        try {
-            let offset = 0; // 从0开始，获取最新的消息
-            let totalFetched = 0;
-            let hasMore = true;
-            const limit = 100; // 每次获取100条消息
-            
-            console.log(`开始使用getChatHistory方法获取频道历史消息...`);
-            
-            while (hasMore) {
-                // 对于私人频道，使用正确的API参数
-                const historyOptions = {
-                    hostname: 'api.telegram.org',
-                    port: 443,
-                    path: `/bot${TELEGRAM_BOT_TOKEN}/getChatHistory?chat_id=${TELEGRAM_CHAT_ID}&limit=${limit}&offset=${offset}`,
-                    method: 'GET',
-                    timeout: 15000 // 15秒超时
-                };
-                
-                console.log(`正在获取频道历史消息，offset: ${offset}, limit: ${limit}`);
-                const historyResponse = await makeRequest(historyOptions);
-                
-                if (historyResponse.ok && historyResponse.result && Array.isArray(historyResponse.result)) {
-                    const messages = historyResponse.result;
-                    console.log(`通过getChatHistory获取到 ${messages.length} 条历史消息 (offset: ${offset})`);
-                    
-                    // 打印前几条消息的信息用于调试
-                    if (messages.length > 0) {
-                        console.log(`第一条消息: ID=${messages[0].message_id}, 日期=${new Date(messages[0].date * 1000).toISOString()}, 类型=${messages[0].photo ? 'photo' : messages[0].document ? 'document' : 'other'}`);
-                        if (messages.length > 1) {
-                            console.log(`最后一条消息: ID=${messages[messages.length-1].message_id}, 日期=${new Date(messages[messages.length-1].date * 1000).toISOString()}, 类型=${messages[messages.length-1].photo ? 'photo' : messages[messages.length-1].document ? 'document' : 'other'}`);
-                        }
-                    }
-                    
-                    // 处理历史消息
-                    await processMessages(messages, photos);
-                    
-                    totalFetched += messages.length;
-                    
-                    // 检查是否还有更多消息
-                    if (messages.length < limit) {
-                        hasMore = false;
-                        console.log('已获取所有历史消息');
-                    } else {
-                        // 使用最后一条消息的ID作为下一次请求的offset
-                        if (messages.length > 0) {
-                            offset = messages[messages.length - 1].message_id;
-                        } else {
-                            offset += limit;
-                        }
-                        
-                        // 避免无限循环，设置最大获取数量
-                        if (totalFetched >= 1000) {
-                            console.log('已达到最大获取数量限制 (1000条消息)');
-                            hasMore = false;
-                        }
-                    }
-                } else {
-                    hasMore = false;
-                    if (!historyResponse.ok) {
-                        console.error('getChatHistory方法失败:', historyResponse.description);
-                        // 如果getChatHistory失败，尝试使用getUpdates作为后备方案
-                        await getUpdatesFallback(photos, resolve, reject);
-                        res();
-                        return;
-                    }
-                }
-            }
-            
-            console.log(`getChatHistory总共获取了 ${totalFetched} 条历史消息，其中包含 ${photos.length} 张图片`);
-            resolve(photos);
-            res();
-        } catch (error) {
-            console.error('getChatHistory请求失败:', error);
-            // 如果getChatHistory失败，尝试使用getUpdates作为后备方案
-            await getUpdatesFallback(photos, resolve, reject);
-            res();
-        }
-    });
 }
 
 // 辅助函数：发送HTTP请求
@@ -758,16 +634,23 @@ async function processMessages(messages, photos) {
     console.log(`处理完成，共添加 ${photos.length} 张图片`);
 }
 
-// getUpdates的后备方案
-async function getUpdatesFallback(photos, resolve, reject) {
+// getUpdates的后备方案，实现增量同步
+async function getUpdatesFallback(photos, resolve, reject, forceFullSync = false) {
     try {
         console.log('开始使用getUpdates方法获取消息更新...');
         
-        // 首先尝试获取最近的更新
+        // 获取上次同步的update_id
+        const lastUpdateId = await getLastUpdateId();
+        console.log(`上次同步的update_id: ${lastUpdateId}`);
+        
+        // 如果是强制全量同步或者是第一次同步，则从-1开始
+        let offset = forceFullSync || lastUpdateId === 0 ? -1 : lastUpdateId + 1;
+        console.log(`本次同步使用的offset: ${offset}, 强制全量同步: ${forceFullSync}`);
+        
         let allPhotos = [];
-        let offset = -1; // 从最早的更新开始
         let hasMore = true;
         let totalUpdates = 0;
+        let maxUpdateId = lastUpdateId; // 记录本次同步获取到的最大update_id
         const maxUpdates = 1000; // 限制最大获取数量
         
         while (hasMore && totalUpdates < maxUpdates) {
@@ -830,6 +713,8 @@ async function getUpdatesFallback(photos, resolve, reject) {
                     if (data.result.length > 0) {
                         // 设置下一次请求的offset为最后一个update_id + 1
                         offset = data.result[data.result.length - 1].update_id + 1;
+                        // 更新本次同步获取到的最大update_id
+                        maxUpdateId = Math.max(maxUpdateId, data.result[data.result.length - 1].update_id);
                     } else {
                         hasMore = false;
                     }
@@ -847,6 +732,12 @@ async function getUpdatesFallback(photos, resolve, reject) {
         }
         
         console.log(`getUpdates总共获取了 ${totalUpdates} 条更新，其中包含 ${allPhotos.length} 张图片`);
+        
+        // 如果获取到了新的更新，更新last_update_id
+        if (maxUpdateId > lastUpdateId) {
+            await setLastUpdateId(maxUpdateId);
+            console.log(`更新last_update_id为: ${maxUpdateId}`);
+        }
         
         // 去重：根据file_id去除重复的图片
         const uniquePhotos = [];
