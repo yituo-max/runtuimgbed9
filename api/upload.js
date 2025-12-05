@@ -221,7 +221,7 @@ module.exports = async (req, res) => {
         };
         
         console.log('上传图片信息:', JSON.stringify(imageInfo, null, 2));
-        savedImage = addImage(imageInfo);
+        savedImage = await addImage(imageInfo);
         
         // 返回结果
         const response = {

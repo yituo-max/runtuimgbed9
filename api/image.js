@@ -1,5 +1,5 @@
 const { verifyAdminToken } = require('./auth-middleware');
-const { getImage, deleteImage, updateImage } = require('./kv-database');
+const { getImage, getImageByFileId, deleteImage, updateImage } = require('./kv-database');
 
 module.exports = async (req, res) => {
     // 设置CORS头
@@ -34,11 +34,20 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'Image ID is required' });
         }
         
+        // 尝试通过ID获取图片，如果失败则尝试通过fileId获取
+        let image = await getImage(imageId);
+        let actualImageId = imageId;
+        
+        if (!image) {
+            // 如果通过ID找不到，尝试通过fileId查找
+            image = await getImageByFileId(imageId);
+            if (image) {
+                actualImageId = image.id;
+            }
+        }
+        
         // 处理GET请求 - 获取图片信息
         if (req.method === 'GET') {
-            // 获取图片信息
-            const image = await getImage(imageId);
-            
             if (!image) {
                 return res.status(404).json({ error: 'Image not found' });
             }
@@ -59,7 +68,7 @@ module.exports = async (req, res) => {
         if (req.method === 'PUT') {
             const { url, filename, category, description, folderId } = req.body;
             
-            const updatedImage = await updateImage(imageId, {
+            const updatedImage = await updateImage(actualImageId, {
                 url,
                 filename,
                 category,
@@ -80,7 +89,7 @@ module.exports = async (req, res) => {
         
         // 处理DELETE请求 - 删除图片
         if (req.method === 'DELETE') {
-            const deletedImage = await deleteImage(imageId);
+            const deletedImage = await deleteImage(actualImageId);
             
             if (!deletedImage) {
                 return res.status(404).json({ error: 'Image not found' });
