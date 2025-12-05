@@ -4224,30 +4224,34 @@
                 
                 // 调用初始化函数
                 init();
-            } // initApp函数结束
-            
-            // URL视图相关函数
-            // 切换视图模式
-            function toggleView() {
-                const urlViewContainer = document.getElementById('urlViewContainer');
-                const galleryGrid = document.getElementById('galleryGrid');
-                const toggleBtn = document.getElementById('toggleViewBtn');
                 
-                if (urlViewContainer.style.display === 'none') {
-                    // 切换到URL视图
-                    urlViewContainer.style.display = 'block';
-                    galleryGrid.style.display = 'none';
-                    toggleBtn.textContent = '网格视图';
-                    toggleBtn.classList.add('active');
-                    renderUrlList();
-                } else {
-                    // 切换到网格视图
-                    urlViewContainer.style.display = 'none';
-                    galleryGrid.style.display = 'grid';
-                    toggleBtn.textContent = 'URL视图';
-                    toggleBtn.classList.remove('active');
+                // URL视图相关函数
+                // 切换视图模式
+                function toggleView() {
+                    const urlViewContainer = document.getElementById('urlViewContainer');
+                    const galleryGrid = document.getElementById('galleryGrid');
+                    const toggleBtn = document.getElementById('toggleViewBtn');
+                    
+                    if (urlViewContainer.style.display === 'none') {
+                        // 切换到URL视图
+                        urlViewContainer.style.display = 'block';
+                        galleryGrid.style.display = 'none';
+                        toggleBtn.textContent = '网格视图';
+                        toggleBtn.classList.add('active');
+                        renderUrlList();
+                    } else {
+                        // 切换到网格视图
+                        urlViewContainer.style.display = 'none';
+                        galleryGrid.style.display = 'grid';
+                        toggleBtn.textContent = 'URL视图';
+                        toggleBtn.classList.remove('active');
+                    }
                 }
-            }
+                
+                // 将函数暴露到全局作用域，以便HTML事件监听器可以访问
+                window.toggleView = toggleView;
+                window.copyAllUrls = copyAllUrls;
+            } // initApp函数结束
             
             // 在所有函数定义完成后，检查是否已登录
             // 添加一个短暂延迟，确保所有元素都已完全加载
