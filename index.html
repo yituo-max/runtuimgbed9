@@ -2524,7 +2524,7 @@
                                         if (data.imageUrl) {
                                             // 保存图片到图片库
                                             const imageData = {
-                                                id: data.fileId || Date.now().toString(),
+                                                id: data.imageId || data.fileId || Date.now().toString(), // 优先使用后端返回的imageId
                                                 url: data.imageUrl,
                                                 name: file.name,
                                                 size: file.size,

@@ -230,6 +230,7 @@ module.exports = async (req, res) => {
             fileId: fileId,
             messageId: messageId, // 添加消息ID到响应中
             fileSize: file.file_size,
+            imageId: savedImage.id, // 添加后端生成的图片ID
             message: 'Image uploaded successfully'
         };
         
