@@ -2666,8 +2666,6 @@
                     if (files.length === 0) return;
 
                     isUploading = true;
-                    uploadButton.disabled = true;
-                    uploadButton.textContent = `批量上传中 (0/${files.length})...`;
                     
                     // 显示进度条
                     const progressBar = document.getElementById('progressBar');
@@ -2687,7 +2685,6 @@
                         const percentComplete = (completedCount / files.length) * 100;
                         progressBar.style.width = percentComplete + '%';
                         document.getElementById('progressText').textContent = `${completedCount}/${files.length} (${Math.round(percentComplete)}%)`;
-                        uploadButton.textContent = `批量上传中 (${completedCount}/${files.length})...`;
                     };
 
                     // 逐个上传文件
@@ -2695,10 +2692,8 @@
                         if (index >= files.length) {
                             // 所有文件上传完成
                             isUploading = false;
-                            uploadButton.disabled = false;
-                            uploadButton.textContent = '上传图片';
                             progressBar.style.display = 'none';
-                            progressText.style.display = 'none';
+                            document.getElementById('progressText').style.display = 'none';
 
                             // 保存图片库数据
                             saveDataToStorage();
