@@ -28,8 +28,8 @@ async function checkSyncStatus() {
     const telegramImages = await getAllTelegramImages();
     console.log(`数据库中有 ${telegramImages.length} 张Telegram图片`);
     
-    // 获取最新的几张图片（不限来源）
-    const recentImages = await getImages(1, 10);
+    // 获取最新的20张图片（不限来源）
+    const recentImages = await getImages(1, 20);
     console.log(`获取到 ${recentImages.images.length} 张最新图片`);
     
     // 分析图片来源
@@ -60,13 +60,28 @@ async function checkSyncStatus() {
         };
     });
     
+    // 检查数据库中所有图片的结构（前50张）
+    const moreImages = await getImages(1, 50);
+    let withFileId = 0;
+    let withoutFileId = 0;
+    
+    for (const img of moreImages.images) {
+        if (img.fileId) {
+            withFileId++;
+        } else {
+            withoutFileId++;
+        }
+    }
+    
     // 返回详细状态
     return {
         success: true,
         message: '同步状态检查完成',
         stats: {
             totalImages: stats.totalImages,
-            telegramImages: telegramImages.length
+            telegramImages: telegramImages.length,
+            withFileId,
+            withoutFileId
         },
         sourceAnalysis,
         recentImages: imageDetails,
@@ -74,7 +89,13 @@ async function checkSyncStatus() {
             id: img.id,
             fileId: img.fileId,
             category: img.category
-        }))
+        })),
+        // 添加诊断信息
+        diagnosis: {
+            telegramImagesInDb: telegramImages.length,
+            telegramImagesInDbDetails: telegramImages,
+            potentialIssue: telegramImages.length > 0 ? "数据库中有Telegram图片，但可能未被正确删除" : "数据库中没有Telegram图片"
+        }
     };
 }
 
@@ -187,7 +208,8 @@ module.exports = async (req, res) => {
             totalPhotos: allPhotos.length,
             profilePhotosCount: profilePhotos.length,
             chatPhotosCount: chatPhotos.length,
-            targetFolderId: null // 明确表示所有新图片都保存到根目录
+            targetFolderId: null, // 明确表示所有新图片都保存到根目录
+            forceRefresh: true // 添加此标志，告诉前端需要强制刷新缓存
         });
     } catch (error) {
         console.error('同步Telegram图片时出错:', error);

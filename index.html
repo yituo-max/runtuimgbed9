@@ -2240,8 +2240,17 @@
                                 const totalCount = data.totalImages || 0;
                                 showNotification(`同步成功！获取到 ${profileCount} 张个人照片，${chatCount} 张聊天照片，共 ${totalCount} 张图片`, 'success');
                                 
-                                // 清除缓存时间戳，强制从服务器获取数据
-                                localStorage.removeItem('imageGalleryCacheTimestamp');
+                                // 如果服务器返回forceRefresh标志，清除本地缓存
+                                if (data.forceRefresh) {
+                                    console.log('服务器请求强制刷新缓存，清除本地数据');
+                                    localStorage.removeItem('imageGalleryCacheTimestamp');
+                                    // 也可以清除整个imageGallery缓存，确保完全刷新
+                                    localStorage.removeItem('imageGallery');
+                                    imageGallery = []; // 清空内存中的图片数组
+                                } else {
+                                    // 否则只清除缓存时间戳
+                                    localStorage.removeItem('imageGalleryCacheTimestamp');
+                                }
                                 
                                 // 刷新图片库
                                 loadDataFromServer(true).then(() => {
