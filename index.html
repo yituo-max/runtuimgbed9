@@ -1099,6 +1099,121 @@
             transition: opacity 0.3s ease, visibility 0.3s ease;
         }
 
+        /* URL显示区域样式 */
+        .url-view-container {
+            background-color: rgba(30, 30, 40, 0.95);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 100, 120, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .url-view-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .url-view-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin: 0;
+        }
+
+        .url-view-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .url-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .url-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-light);
+            transition: background-color 0.2s;
+        }
+
+        .url-item:hover {
+            background-color: rgba(64, 158, 255, 0.1);
+        }
+
+        .url-item:last-child {
+            border-bottom: none;
+        }
+
+        .url-thumbnail {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-right: 15px;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .url-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .url-filename {
+            font-size: 14px;
+            font-weight: 500;
+            color: #e0e0e0;
+            margin-bottom: 5px;
+            word-break: break-all;
+        }
+
+        .url-text {
+            font-size: 12px;
+            color: #a0a0b0;
+            word-break: break-all;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .url-copy-btn {
+            padding: 6px 12px;
+            background-color: rgba(64, 158, 255, 0.2);
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .url-copy-btn:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        /* 视图切换按钮样式 */
+        #toggleViewBtn {
+            background-color: rgba(64, 158, 255, 0.2);
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+        }
+
+        #toggleViewBtn:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        #toggleViewBtn.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
         .image-preview-overlay.show {
             opacity: 1;
             visibility: visible;
@@ -1674,6 +1789,7 @@
                             </select>
                             <button class="btn btn-secondary" id="refreshGalleryBtn" title="强制从服务器刷新图片库">刷新</button>
                         <button class="btn btn-secondary" id="syncTelegramBtn" title="从Telegram同步图片">同步Telegram</button>
+                            <button class="btn btn-secondary" id="toggleViewBtn" title="切换视图模式">URL视图</button>
                             <button class="btn btn-primary" id="addFolderBtn">新建文件夹</button>
                         </div>
                     </div>
@@ -1681,6 +1797,19 @@
                     <!-- 文件夹路径导航 -->
                     <div class="folder-breadcrumb" id="folderBreadcrumb">
                         <span class="breadcrumb-item active" data-folder="">根目录</span>
+                    </div>
+                    
+                    <!-- URL显示区域 -->
+                    <div class="url-view-container" id="urlViewContainer" style="display: none;">
+                        <div class="url-view-header">
+                            <h3>图片URL列表</h3>
+                            <div class="url-view-actions">
+                                <button class="btn btn-secondary" id="copyAllUrlsBtn">复制所有URL</button>
+                            </div>
+                        </div>
+                        <div class="url-list" id="urlList">
+                            <!-- URL列表将通过JavaScript动态生成 -->
+                        </div>
                     </div>
                     
                     <!-- 文件夹和图片内容区域 -->
@@ -2880,6 +3009,12 @@
                             // 保存图片库数据
                             saveDataToStorage();
                             renderGallery();
+                            
+                            // 如果在URL视图，也更新URL列表
+                            const urlViewContainer = document.getElementById('urlViewContainer');
+                            if (urlViewContainer.style.display !== 'none') {
+                                renderUrlList();
+                            }
 
                             // 显示结果
                             if (successCount === files.length) {
@@ -3196,6 +3331,12 @@
                                     const folderId = this.querySelector('.folder-actions button').getAttribute('data-id');
                                     currentFolder = folderId;
                                     renderGallery();
+                                    
+                                    // 如果在URL视图，也更新URL列表
+                                    const urlViewContainer = document.getElementById('urlViewContainer');
+                                    if (urlViewContainer.style.display !== 'none') {
+                                        renderUrlList();
+                                    }
                                 }
                             });
                         });
@@ -3301,6 +3442,13 @@
                             saveDataToStorage();
                             updateCategorySelects();
                             renderCategories();
+                            
+                            // 如果在URL视图，也更新URL列表
+                            const urlViewContainer = document.getElementById('urlViewContainer');
+                            if (urlViewContainer.style.display !== 'none') {
+                                renderUrlList();
+                            }
+                            
                             showNotification('分类添加成功', 'success');
                         } else {
                             showNotification('分类已存在', 'warning');
@@ -3329,6 +3477,13 @@
                             updateCategorySelects();
                             renderCategories();
                             renderGallery();
+                            
+                            // 如果在URL视图，也更新URL列表
+                            const urlViewContainer = document.getElementById('urlViewContainer');
+                            if (urlViewContainer.style.display !== 'none') {
+                                renderUrlList();
+                            }
+                            
                             showNotification('分类重命名成功', 'success');
                         } else {
                             showNotification('分类已存在', 'warning');
@@ -3354,6 +3509,13 @@
                         updateCategorySelects();
                         renderCategories();
                         renderGallery();
+                        
+                        // 如果在URL视图，也更新URL列表
+                        const urlViewContainer = document.getElementById('urlViewContainer');
+                        if (urlViewContainer.style.display !== 'none') {
+                            renderUrlList();
+                        }
+                        
                         showNotification('分类删除成功', 'success');
                     }
                 }
@@ -3372,6 +3534,13 @@
                     folders.push(folder);
                     saveDataToStorage();
                     renderGallery();
+                    
+                    // 如果在URL视图，也更新URL列表
+                    const urlViewContainer = document.getElementById('urlViewContainer');
+                    if (urlViewContainer.style.display !== 'none') {
+                        renderUrlList();
+                    }
+                    
                     showNotification(`文件夹 "${name}" 创建成功`, 'success');
                     return folder;
                 }
@@ -3383,6 +3552,13 @@
                         folder.name = newName;
                         saveDataToStorage();
                         renderGallery();
+                        
+                        // 如果在URL视图，也更新URL列表
+                        const urlViewContainer = document.getElementById('urlViewContainer');
+                        if (urlViewContainer.style.display !== 'none') {
+                            renderUrlList();
+                        }
+                        
                         showNotification(`文件夹重命名成功`, 'success');
                         return true;
                     }
@@ -3416,6 +3592,13 @@
                         }
                         
                         renderGallery();
+                        
+                        // 如果在URL视图，也更新URL列表
+                        const urlViewContainer = document.getElementById('urlViewContainer');
+                        if (urlViewContainer.style.display !== 'none') {
+                            renderUrlList();
+                        }
+                        
                         showNotification(`文件夹删除成功`, 'success');
                         return true;
                     }
@@ -3461,6 +3644,11 @@
                     rootItem.addEventListener('click', function() {
                         currentFolder = null;
                         renderGallery();
+                        // 如果在URL视图，也更新URL列表
+                        const urlViewContainer = document.getElementById('urlViewContainer');
+                        if (urlViewContainer.style.display !== 'none') {
+                            renderUrlList();
+                        }
                     });
                     folderBreadcrumb.appendChild(rootItem);
                     
@@ -3481,6 +3669,11 @@
                             folderItem.addEventListener('click', function() {
                                 currentFolder = folder.id;
                                 renderGallery();
+                                // 如果在URL视图，也更新URL列表
+                                const urlViewContainer = document.getElementById('urlViewContainer');
+                                if (urlViewContainer.style.display !== 'none') {
+                                    renderUrlList();
+                                }
                             });
                             folderBreadcrumb.appendChild(folderItem);
                         });
@@ -3623,6 +3816,13 @@
                                 if (data.success) {
                                     console.log('图片文件夹信息已同步到服务器');
                                     renderGallery();
+                                    
+                                    // 如果在URL视图，也更新URL列表
+                                    const urlViewContainer = document.getElementById('urlViewContainer');
+                                    if (urlViewContainer.style.display !== 'none') {
+                                        renderUrlList();
+                                    }
+                                    
                                     showNotification('图片已移动到文件夹', 'success');
                                 } else {
                                     throw new Error(data.error || '同步失败');
@@ -3657,6 +3857,13 @@
                         saveDataToStorage();
                         renderGallery();
                         renderCategories();
+                        
+                        // 如果在URL视图，也更新URL列表
+                        const urlViewContainer = document.getElementById('urlViewContainer');
+                        if (urlViewContainer.style.display !== 'none') {
+                            renderUrlList();
+                        }
+                        
                         showNotification(`图片 "${imageName}" 已删除`, 'success');
                     }
                 }
@@ -3698,6 +3905,13 @@
                             .then(data => {
                                 if (data.success) {
                                     renderGallery();
+                                    
+                                    // 如果在URL视图，也更新URL列表
+                                    const urlViewContainer = document.getElementById('urlViewContainer');
+                                    if (urlViewContainer.style.display !== 'none') {
+                                        renderUrlList();
+                                    }
+                                    
                                     showNotification(`图片已重命名为 "${image.name}"`, 'success');
                                 } else {
                                     throw new Error(data.error || '同步失败');
@@ -3775,8 +3989,23 @@
                 }
 
                 // 搜索和筛选事件
-                searchInput.addEventListener('input', renderGallery);
-                filterCategory.addEventListener('change', renderGallery);
+                searchInput.addEventListener('input', function() {
+                    renderGallery();
+                    // 如果在URL视图，也更新URL列表
+                    const urlViewContainer = document.getElementById('urlViewContainer');
+                    if (urlViewContainer.style.display !== 'none') {
+                        renderUrlList();
+                    }
+                });
+                
+                filterCategory.addEventListener('change', function() {
+                    renderGallery();
+                    // 如果在URL视图，也更新URL列表
+                    const urlViewContainer = document.getElementById('urlViewContainer');
+                    if (urlViewContainer.style.display !== 'none') {
+                        renderUrlList();
+                    }
+                });
                 
                 // 文件夹相关事件
                 addFolderBtn.addEventListener('click', function() {
@@ -3785,6 +4014,10 @@
                         createFolder(folderName.trim(), currentFolder);
                     }
                 });
+                
+                // URL视图相关事件
+                document.getElementById('toggleViewBtn').addEventListener('click', toggleView);
+                document.getElementById('copyAllUrlsBtn').addEventListener('click', copyAllUrls);
 
                 // 显示通知
                 showNotification = function(message, type = 'info') {
@@ -3888,6 +4121,133 @@
                 // 调用初始化函数
                 init();
             } // initApp函数结束
+            
+            // URL视图相关函数
+            // 切换视图模式
+            function toggleView() {
+                const urlViewContainer = document.getElementById('urlViewContainer');
+                const galleryGrid = document.getElementById('galleryGrid');
+                const toggleBtn = document.getElementById('toggleViewBtn');
+                
+                if (urlViewContainer.style.display === 'none') {
+                    // 切换到URL视图
+                    urlViewContainer.style.display = 'block';
+                    galleryGrid.style.display = 'none';
+                    toggleBtn.textContent = '网格视图';
+                    toggleBtn.classList.add('active');
+                    renderUrlList();
+                } else {
+                    // 切换到网格视图
+                    urlViewContainer.style.display = 'none';
+                    galleryGrid.style.display = 'grid';
+                    toggleBtn.textContent = 'URL视图';
+                    toggleBtn.classList.remove('active');
+                }
+            }
+            
+            // 渲染URL列表
+            function renderUrlList() {
+                const urlList = document.getElementById('urlList');
+                urlList.innerHTML = '';
+                
+                // 获取当前文件夹中的所有图片
+                const currentFolderImages = getCurrentFolderImages();
+                
+                if (currentFolderImages.length === 0) {
+                    urlList.innerHTML = '<div class="empty-state" style="padding: 20px; text-align: center; color: #a0a0b0;">当前文件夹中没有图片</div>';
+                    return;
+                }
+                
+                // 为每个图片创建URL项
+                currentFolderImages.forEach(image => {
+                    const urlItem = document.createElement('div');
+                    urlItem.className = 'url-item';
+                    
+                    // 创建缩略图
+                    const thumbnail = document.createElement('img');
+                    thumbnail.className = 'url-thumbnail';
+                    thumbnail.src = image.url;
+                    thumbnail.alt = image.name;
+                    thumbnail.onerror = function() {
+                        this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjMzMzIi8+CjxwYXRoIGQ9Ik0yMCAxNkMxNy44IDE2IDE2IDE3LjggMTYgMjBDMTYgMjIuMiAxNy44IDI0IDIwIDI0QzIyLjIgMjQgMjQgMjIuMiAyNCAyMEMyNCAxNy44IDIyLjIgMTYgMjAgMTZaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPg==';
+                    };
+                    
+                    // 创建信息区域
+                    const urlInfo = document.createElement('div');
+                    urlInfo.className = 'url-info';
+                    
+                    const filename = document.createElement('div');
+                    filename.className = 'url-filename';
+                    filename.textContent = image.name || image.filename || '未命名图片';
+                    
+                    const urlText = document.createElement('div');
+                    urlText.className = 'url-text';
+                    urlText.textContent = image.url;
+                    
+                    urlInfo.appendChild(filename);
+                    urlInfo.appendChild(urlText);
+                    
+                    // 创建复制按钮
+                    const copyBtn = document.createElement('button');
+                    copyBtn.className = 'url-copy-btn';
+                    copyBtn.textContent = '复制';
+                    copyBtn.addEventListener('click', function() {
+                        copyToClipboard(image.url);
+                    });
+                    
+                    // 组装元素
+                    urlItem.appendChild(thumbnail);
+                    urlItem.appendChild(urlInfo);
+                    urlItem.appendChild(copyBtn);
+                    
+                    urlList.appendChild(urlItem);
+                });
+            }
+            
+            // 获取当前文件夹中的所有图片
+            function getCurrentFolderImages() {
+                let filteredImages = [...imageGallery];
+                
+                // 按当前文件夹筛选
+                if (currentFolder) {
+                    filteredImages = filteredImages.filter(image => image.folderId === currentFolder);
+                } else {
+                    // 根目录显示未分配文件夹的图片
+                    filteredImages = filteredImages.filter(image => !image.folderId);
+                }
+                
+                // 应用搜索筛选
+                const searchTerm = searchInput.value.toLowerCase();
+                if (searchTerm) {
+                    filteredImages = filteredImages.filter(image => 
+                        (image.name && image.name.toLowerCase().includes(searchTerm)) ||
+                        (image.filename && image.filename.toLowerCase().includes(searchTerm)) ||
+                        (image.description && image.description.toLowerCase().includes(searchTerm))
+                    );
+                }
+                
+                // 应用分类筛选
+                const selectedCategory = filterCategory.value;
+                if (selectedCategory) {
+                    filteredImages = filteredImages.filter(image => image.category === selectedCategory);
+                }
+                
+                return filteredImages;
+            }
+            
+            // 复制所有URL
+            function copyAllUrls() {
+                const currentFolderImages = getCurrentFolderImages();
+                
+                if (currentFolderImages.length === 0) {
+                    showNotification('当前文件夹中没有图片可复制', 'warning');
+                    return;
+                }
+                
+                const allUrls = currentFolderImages.map(image => image.url).join('\n');
+                copyToClipboard(allUrls);
+                showNotification(`已复制 ${currentFolderImages.length} 个图片URL`, 'success');
+            }
             
             // 在所有函数定义完成后，检查是否已登录
             // 添加一个短暂延迟，确保所有元素都已完全加载
