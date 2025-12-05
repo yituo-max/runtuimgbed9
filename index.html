@@ -2896,7 +2896,7 @@
                             
                             // 如果上传了多张图片，显示多图片预览区域
                             if (successCount > 1) {
-                                displayMultiplePreview();
+                                displayMultiplePreview(successCount);
                                 // 隐藏单个图片预览
                                 document.getElementById('resultImage').style.display = 'none';
                             } else if (successCount === 1) {
@@ -3003,7 +3003,7 @@
                 }
 
                 // 显示多图片预览
-                function displayMultiplePreview() {
+                function displayMultiplePreview(count) {
                     const multiplePreviewContainer = document.getElementById('multiplePreviewContainer');
                     const previewThumbnails = document.getElementById('previewThumbnails');
                     const resultCount = document.getElementById('resultCount');
@@ -3011,10 +3011,10 @@
                     const copyAllUrlsBtn = document.getElementById('copyAllUrls');
                     
                     // 获取最近上传的图片
-                    const recentImages = imageGallery.slice(-successCount);
+                    const recentImages = imageGallery.slice(-count);
                     
                     // 显示上传数量
-                    uploadCount.textContent = successCount;
+                    uploadCount.textContent = count;
                     resultCount.style.display = 'inline';
                     
                     // 显示复制所有链接按钮
