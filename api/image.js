@@ -66,11 +66,12 @@ module.exports = async (req, res) => {
         
         // 处理PUT请求 - 更新图片信息
         if (req.method === 'PUT') {
-            const { url, filename, category, description, folderId } = req.body;
+            const { url, filename, name, category, description, folderId } = req.body;
             
             const updatedImage = await updateImage(actualImageId, {
                 url,
                 filename,
+                name,
                 category,
                 description,
                 folderId

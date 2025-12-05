@@ -3153,6 +3153,7 @@
                             // 只有管理员才能看到操作按钮
                             const actionsHtml = adminToken ? `
                                 <div class="gallery-actions">
+                                    <button class="action-btn" title="重命名" data-action="rename" data-id="${image.id}">✏️</button>
                                     <button class="action-btn" title="移动到文件夹" data-action="move" data-id="${image.id}">📁</button>
                                     <button class="action-btn" title="复制链接" data-action="copy" data-url="${image.url}">📋</button>
                                     <button class="action-btn" title="删除" data-action="delete" data-id="${image.id}">🗑️</button>
@@ -3213,7 +3214,10 @@
                                         e.stopPropagation();
                                         const action = this.getAttribute('data-action');
                                         
-                                        if (action === 'move') {
+                                        if (action === 'rename') {
+                                            const imageId = this.getAttribute('data-id');
+                                            renameImage(imageId);
+                                        } else if (action === 'move') {
                                             const imageId = this.getAttribute('data-id');
                                             console.log('Moving image with ID:', imageId); // 添加调试日志
                                             showMoveToFolderDialog(imageId);
@@ -3654,6 +3658,60 @@
                         renderGallery();
                         renderCategories();
                         showNotification(`图片 "${imageName}" 已删除`, 'success');
+                    }
+                }
+
+                // 重命名图片
+                function renameImage(imageId) {
+                    const image = imageGallery.find(img => img.id === imageId);
+                    if (image) {
+                        const newName = prompt('请输入新的图片名称:', image.name);
+                        if (newName && newName.trim() && newName.trim() !== image.name) {
+                            const oldName = image.name;
+                            image.name = newName.trim();
+                            
+                            // 保存到本地存储
+                            saveDataToStorage();
+                            
+                            // 同步到服务器
+                            fetch(`/api/image?id=${image.id}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${adminToken}`
+                                },
+                                body: JSON.stringify({
+                                    url: image.url,
+                                    filename: image.filename || image.name,
+                                    name: image.name,
+                                    category: image.category,
+                                    description: image.description || '',
+                                    folderId: image.folderId
+                                })
+                            })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP error! status: ${response.status}`);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                if (data.success) {
+                                    renderGallery();
+                                    showNotification(`图片已重命名为 "${image.name}"`, 'success');
+                                } else {
+                                    throw new Error(data.error || '同步失败');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('同步图片名称失败:', error);
+                                // 如果同步失败，恢复本地数据
+                                image.name = oldName;
+                                saveDataToStorage();
+                                renderGallery();
+                                showNotification('重命名失败: ' + error.message, 'error');
+                            });
+                        }
                     }
                 }
 
