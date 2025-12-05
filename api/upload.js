@@ -194,43 +194,43 @@ module.exports = async (req, res) => {
         console.log('Is admin:', isAdmin);
         console.log('Fields:', JSON.stringify(fields, null, 2));
         
-        // 保存图片信息到数据库（只有管理员才保存）
+        // 保存图片信息到数据库（所有上传的图片都保存）
         let savedImage = null;
-        if (isAdmin) {
-            // 获取分类字段 - 处理可能的数组格式
-            let category = 'general';
-            if (fields.category) {
-                if (Array.isArray(fields.category)) {
-                    category = fields.category[0] || 'general';
-                } else {
-                    category = fields.category || 'general';
-                }
+        
+        // 获取分类字段 - 处理可能的数组格式
+        let category = 'general';
+        if (fields.category) {
+            if (Array.isArray(fields.category)) {
+                category = fields.category[0] || 'general';
+            } else {
+                category = fields.category || 'general';
             }
-            
-            console.log('Category:', category);
-            
-            const imageInfo = {
-                filename: imageFile.originalFilename || imageFile.newFilename || 'unknown',
-                url: imageUrl,
-                size: file.file_size,
-                fileId: fileId,
-                messageId: messageId, // 添加消息ID
-                category: category,
-                uploadTime: new Date().toISOString() // 添加上传时间，用于同步时比较
-            };
-            
-            console.log('上传图片信息:', JSON.stringify(imageInfo, null, 2));
-            savedImage = addImage(imageInfo);
         }
+        
+        console.log('Category:', category);
+        
+        const imageInfo = {
+            filename: imageFile.originalFilename || imageFile.newFilename || 'unknown',
+            url: imageUrl,
+            size: file.file_size,
+            fileId: fileId,
+            messageId: messageId, // 添加消息ID
+            category: category,
+            uploadTime: new Date().toISOString(), // 添加上传时间，用于同步时比较
+            isLocalUpload: true // 标记这是本地上传的图片，与Telegram同步的图片区分
+        };
+        
+        console.log('上传图片信息:', JSON.stringify(imageInfo, null, 2));
+        savedImage = addImage(imageInfo);
         
         // 返回结果
         const response = {
             success: true,
-            imageUrl: isAdmin ? imageUrl : null, // 只有管理员才能看到图片URL
+            imageUrl: imageUrl, // 所有用户都能看到图片URL
             fileId: fileId,
             messageId: messageId, // 添加消息ID到响应中
             fileSize: file.file_size,
-            message: isAdmin ? 'Image uploaded successfully' : 'Image uploaded successfully but URL is only available to administrators'
+            message: 'Image uploaded successfully'
         };
         
         console.log('Response:', JSON.stringify(response, null, 2));

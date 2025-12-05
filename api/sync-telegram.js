@@ -209,7 +209,7 @@ module.exports = async (req, res) => {
             profilePhotosCount: profilePhotos.length,
             chatPhotosCount: chatPhotos.length,
             targetFolderId: null, // 明确表示所有新图片都保存到根目录
-            forceRefresh: true, // 添加此标志，告诉前端需要强制刷新缓存
+            forceRefresh: false, // 修改为false，避免强制清空本地数据
             note: "由于Telegram Bot API的getUpdates方法只能获取新消息而不能获取历史消息，我们不会自动删除数据库中存在但当前获取结果中不存在的图片，以避免误删历史图片。"
         });
     } catch (error) {

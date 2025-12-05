@@ -2520,8 +2520,8 @@
                                             previewContainer.style.display = 'none';
                                         }, 5000); // 5秒后隐藏预览图片
                                     
-                                    // 只有管理员才保存图片到图片库
-                                        if (adminToken && data.imageUrl) {
+                                    // 保存图片到图片库（所有用户上传的图片都保存）
+                                        if (data.imageUrl) {
                                             // 保存图片到图片库
                                             const imageData = {
                                                 id: data.fileId || Date.now().toString(),
@@ -2531,7 +2531,8 @@
                                                 type: file.type,
                                                 category: 'other',
                                                 uploadTime: new Date().toISOString(),
-                                                fileId: data.fileId // 确保保存fileId
+                                                fileId: data.fileId, // 确保保存fileId
+                                                isLocalUpload: true // 标记这是本地上传的图片
                                             };
                                             
                                             console.log('前端保存的图片数据:', JSON.stringify(imageData, null, 2));
@@ -2542,12 +2543,8 @@
                                     // 重置上传状态
                                     isUploading = false;
                                     
-                                    // 根据用户类型显示不同的通知
-                                    if (adminToken) {
-                                        showNotification('图片上传成功并已保存到图片库', 'success');
-                                    } else {
-                                        showNotification('图片上传成功！登录后可查看图片链接', 'success');
-                                    }
+                                    // 显示统一的通知消息
+                                    showNotification('图片上传成功并已保存到图片库', 'success');
                                 }, 500);
                             } else {
                                 throw new Error(`HTTP error! status: ${xhr.status}`);
