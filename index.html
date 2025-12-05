@@ -1419,7 +1419,7 @@
                     </div>
                     
                     <div class="drop-zone" id="dropZone">
-                        <input type="file" id="fileInput" class="file-input" accept="image/*">
+                        <input type="file" id="fileInput" class="file-input" accept="image/*" multiple>
                         
                         <!-- 居中的十字图标 -->
                         <div class="upload-cross-icon">+</div>
@@ -2313,23 +2313,36 @@
                             console.log('Upload in progress, ignoring file selection');
                             return;
                         }
-                        console.log('File selected:', fileInput.files[0].name);
-                        const selectedFile = fileInput.files[0];
                         
-                        // 显示预览
-                        if (selectedFile.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onload = function(e) {
-                                console.log('FileReader loaded, setting preview image src');
-                                previewImage.src = e.target.result;
-                                previewContainer.style.display = 'block';
-                                console.log('Preview container display:', previewContainer.style.display);
-                                console.log('Preview image src set to:', previewImage.src);
-                            };
-                            reader.readAsDataURL(selectedFile);
+                        // 处理多个文件
+                        const files = Array.from(fileInput.files);
+                        console.log(`选中了 ${files.length} 个文件`);
+                        
+                        // 如果只选择了一个文件，显示预览
+                        if (files.length === 1) {
+                            const selectedFile = files[0];
+                            console.log('File selected:', selectedFile.name);
+                            
+                            // 显示预览
+                            if (selectedFile.type.startsWith('image/')) {
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    console.log('FileReader loaded, setting preview image src');
+                                    previewImage.src = e.target.result;
+                                    previewContainer.style.display = 'block';
+                                    console.log('Preview container display:', previewContainer.style.display);
+                                    console.log('Preview image src set to:', previewImage.src);
+                                };
+                                reader.readAsDataURL(selectedFile);
+                            }
+                        } else {
+                            // 多个文件时显示提示
+                            showNotification(`已选择 ${files.length} 个文件，准备批量上传`, 'info');
                         }
                         
-                        handleFile(selectedFile);
+                        // 处理所有文件
+                        handleMultipleFiles(files);
+                        
                         setTimeout(() => {
                             fileInput.value = '';
                             isFileDialogOpen = false;
@@ -2358,22 +2371,34 @@
                             console.log('Upload in progress, ignoring dropped file');
                             return;
                         }
-                        const file = e.dataTransfer.files[0];
                         
-                        // 显示预览
-                        if (file.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onload = function(e) {
-                                console.log('FileReader loaded (drag & drop), setting preview image src');
-                                previewImage.src = e.target.result;
-                                previewContainer.style.display = 'block';
-                                console.log('Preview container display (drag & drop):', previewContainer.style.display);
-                                console.log('Preview image src set to (drag & drop):', previewImage.src);
-                            };
-                            reader.readAsDataURL(file);
+                        // 处理多个文件
+                        const files = Array.from(e.dataTransfer.files);
+                        console.log(`拖放了 ${files.length} 个文件`);
+                        
+                        // 如果只拖放了一个文件，显示预览
+                        if (files.length === 1) {
+                            const file = files[0];
+                            
+                            // 显示预览
+                            if (file.type.startsWith('image/')) {
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    console.log('FileReader loaded (drag & drop), setting preview image src');
+                                    previewImage.src = e.target.result;
+                                    previewContainer.style.display = 'block';
+                                    console.log('Preview container display (drag & drop):', previewContainer.style.display);
+                                    console.log('Preview image src set to (drag & drop):', previewImage.src);
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        } else {
+                            // 多个文件时显示提示
+                            showNotification(`已拖放 ${files.length} 个文件，准备批量上传`, 'info');
                         }
                         
-                        handleFile(file);
+                        // 处理所有文件
+                        handleMultipleFiles(files);
                     }
                 });
 
@@ -2398,13 +2423,53 @@
                         return;
                     }
 
-                    // 验证文件大小 (10MB限制)
-                    if (file.size > 10 * 1024 * 1024) {
-                        showNotification('文件大小不能超过10MB', 'error');
+                    // Vercel免费版请求体大小限制为4.5MB，我们设置更严格的限制
+                    if (file.size > 4 * 1024 * 1024) {
+                        showNotification('文件大小不能超过4MB（Vercel免费版限制）', 'error');
                         return;
                     }
 
                     uploadFile(file);
+                }
+
+                // 处理多个文件上传
+                function handleMultipleFiles(files) {
+                    // 过滤出有效的图片文件
+                    const validFiles = files.filter(file => {
+                        if (!file.type.startsWith('image/')) {
+                            console.warn(`跳过非图片文件: ${file.name}`);
+                            return false;
+                        }
+                        // Vercel免费版请求体大小限制为4.5MB，我们设置更严格的限制
+                        if (file.size > 4 * 1024 * 1024) {
+                            console.warn(`跳过大文件: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB) - 超过Vercel免费版限制`);
+                            return false;
+                        }
+                        return true;
+                    });
+
+                    if (validFiles.length === 0) {
+                        showNotification('没有有效的图片文件可上传', 'error');
+                        return;
+                    }
+
+                    // Vercel免费版限制：一次批量上传不超过10个文件
+                    if (validFiles.length > 10) {
+                        showNotification(`一次最多只能上传10个文件，已选择前10个文件`, 'warning');
+                        validFiles.splice(10); // 只保留前10个文件
+                    }
+
+                    if (validFiles.length < files.length) {
+                        showNotification(`已过滤 ${files.length - validFiles.length} 个无效文件，准备上传 ${validFiles.length} 个文件`, 'warning');
+                    }
+
+                    // 显示Vercel限制提醒
+                    if (validFiles.length > 5) {
+                        showNotification('批量上传较多文件可能会消耗较多带宽和时间', 'info');
+                    }
+
+                    // 开始批量上传
+                    uploadMultipleFiles(validFiles);
                 }
 
                 // 上传文件
@@ -2594,6 +2659,152 @@
                     }
                     
                     xhr.send(formData);
+                }
+
+                // 批量上传文件
+                function uploadMultipleFiles(files) {
+                    if (files.length === 0) return;
+
+                    isUploading = true;
+                    uploadButton.disabled = true;
+                    uploadButton.textContent = `批量上传中 (0/${files.length})...`;
+                    
+                    // 显示进度条
+                    const progressBar = document.getElementById('progressBar');
+                    progressContainer.style.display = 'block';
+                    resultContainer.style.display = 'none';
+                    
+                    // 重置进度条
+                    progressBar.style.width = '0%';
+                    document.getElementById('progressText').textContent = '0%';
+
+                    let completedCount = 0;
+                    let successCount = 0;
+                    let failedFiles = [];
+
+                    // 创建一个进度跟踪器
+                    const updateProgress = () => {
+                        const percentComplete = (completedCount / files.length) * 100;
+                        progressBar.style.width = percentComplete + '%';
+                        document.getElementById('progressText').textContent = `${completedCount}/${files.length} (${Math.round(percentComplete)}%)`;
+                        uploadButton.textContent = `批量上传中 (${completedCount}/${files.length})...`;
+                    };
+
+                    // 逐个上传文件
+                    const uploadNextFile = (index) => {
+                        if (index >= files.length) {
+                            // 所有文件上传完成
+                            isUploading = false;
+                            uploadButton.disabled = false;
+                            uploadButton.textContent = '上传图片';
+                            progressBar.style.display = 'none';
+                            progressText.style.display = 'none';
+
+                            // 保存图片库数据
+                            saveDataToStorage();
+                            renderImageGallery();
+
+                            // 显示结果
+                            if (successCount === files.length) {
+                                showNotification(`成功上传 ${successCount} 个文件！`, 'success');
+                            } else {
+                                showNotification(`上传完成: ${successCount} 成功, ${failedFiles.length} 失败`, 'warning');
+                                if (failedFiles.length > 0) {
+                                    console.error('上传失败的文件:', failedFiles);
+                                }
+                            }
+
+                            // 清空预览
+                            previewImage.src = '';
+                            previewContainer.style.display = 'none';
+                            return;
+                        }
+
+                        const file = files[index];
+                        const formData = new FormData();
+                        formData.append('image', file);
+                        // 添加category参数，固定为'other'
+                        formData.append('category', 'other');
+
+                        const xhr = new XMLHttpRequest();
+
+                        xhr.addEventListener('load', function() {
+                            completedCount++;
+                            updateProgress();
+
+                            try {
+                                if (xhr.status >= 200 && xhr.status < 300) {
+                                    // 检查响应是否存在且不为空
+                                    if (!xhr.responseText || xhr.responseText.trim() === '') {
+                                        throw new Error('服务器返回空响应');
+                                    }
+                                    
+                                    let data;
+                                    try {
+                                        data = JSON.parse(xhr.responseText);
+                                    } catch (parseError) {
+                                        throw new Error('服务器响应格式错误');
+                                    }
+                                    
+                                    // 检查响应数据是否包含必要字段
+                                    if (!data) {
+                                        throw new Error('服务器响应缺少必要数据');
+                                    }
+                                    
+                                    // 对于非管理员用户，只需要检查success字段
+                                    if (!data.success) {
+                                        throw new Error('上传失败');
+                                    }
+                                    
+                                    // 保存图片到图片库
+                                    if (data.imageUrl) {
+                                        const imageData = {
+                                            id: data.imageId || data.fileId || Date.now().toString(),
+                                            url: data.imageUrl,
+                                            name: file.name,
+                                            size: file.size,
+                                            type: file.type,
+                                            category: 'other',
+                                            uploadTime: new Date().toISOString(),
+                                            fileId: data.fileId,
+                                            isLocalUpload: true
+                                        };
+                                        
+                                        imageGallery.push(imageData);
+                                        successCount++;
+                                    } else {
+                                        failedFiles.push({ name: file.name, error: '未返回图片URL' });
+                                    }
+                                } else {
+                                    throw new Error(`HTTP error! status: ${xhr.status}`);
+                                }
+                            } catch (error) {
+                                failedFiles.push({ name: file.name, error: error.message });
+                            }
+
+                            // 继续上传下一个文件
+                            uploadNextFile(index + 1);
+                        });
+
+                        xhr.addEventListener('error', function() {
+                            completedCount++;
+                            updateProgress();
+                            failedFiles.push({ name: file.name, error: '网络错误' });
+                            uploadNextFile(index + 1);
+                        });
+
+                        xhr.open('POST', '/api/upload');
+                        
+                        // 添加认证头（如果有token）
+                        if (adminToken && !adminToken.startsWith('local-admin-token-')) {
+                            xhr.setRequestHeader('Authorization', `Bearer ${adminToken}`);
+                        }
+                        
+                        xhr.send(formData);
+                    };
+
+                    // 开始上传第一个文件
+                    uploadNextFile(0);
                 }
 
                 // 渲染图片库
