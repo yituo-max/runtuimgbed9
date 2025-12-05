@@ -200,7 +200,7 @@ module.exports = async (req, res) => {
         
         return res.status(200).json({
             success: true,
-            message: `同步完成，新增 ${syncedCount} 张图片到根目录，跳过 ${skippedCount} 张已存在的图片，删除 ${deletedCount} 张已不存在的图片`,
+            message: `同步完成，新增 ${syncedCount} 张图片到根目录，跳过 ${skippedCount} 张已存在的图片。注意：由于Telegram API限制，未自动删除可能已不存在的图片`,
             syncedCount,
             updatedCount,
             skippedCount,
@@ -209,7 +209,8 @@ module.exports = async (req, res) => {
             profilePhotosCount: profilePhotos.length,
             chatPhotosCount: chatPhotos.length,
             targetFolderId: null, // 明确表示所有新图片都保存到根目录
-            forceRefresh: true // 添加此标志，告诉前端需要强制刷新缓存
+            forceRefresh: true, // 添加此标志，告诉前端需要强制刷新缓存
+            note: "由于Telegram Bot API的getUpdates方法只能获取新消息而不能获取历史消息，我们不会自动删除数据库中存在但当前获取结果中不存在的图片，以避免误删历史图片。"
         });
     } catch (error) {
         console.error('同步Telegram图片时出错:', error);
@@ -278,16 +279,11 @@ async function syncPhotosToDatabase(photos) {
             existingImageCategories[img.fileId] = img.category;
         }
         
-        // 3. 删除不在当前Telegram列表中的图片
-        if (existingTelegramImages.length > 0) {
-            console.log(`开始检查需要删除的图片...`);
-            console.log(`当前Telegram图片fileId列表: [${currentFileIds.join(', ')}]`);
-            
-            deletedCount = await deleteTelegramImagesNotInList(currentFileIds);
-            console.log(`删除了 ${deletedCount} 张已不存在的图片`);
-        } else {
-            console.log('数据库中没有Telegram图片，跳过删除步骤');
-        }
+        // 3. 注意：由于getUpdates只能获取新消息，不能获取历史消息，
+        //    所以我们不自动删除数据库中存在但当前Telegram获取结果中不存在的图片
+        //    这可以避免误删之前同步的历史图片
+        console.log('由于getUpdates API限制，跳过自动删除步骤以避免误删历史图片');
+        deletedCount = 0;
         
         // 4. 处理当前Telegram中的图片
         for (const photo of photos) {
