@@ -4118,6 +4118,110 @@
                     }
                 });
                 
+                // 获取当前文件夹中的所有图片
+                function getCurrentFolderImages() {
+                    let filteredImages = [...imageGallery];
+                    
+                    // 按当前文件夹筛选
+                    if (currentFolder) {
+                        filteredImages = filteredImages.filter(image => image.folderId === currentFolder);
+                    } else {
+                        // 根目录显示未分配文件夹的图片
+                        filteredImages = filteredImages.filter(image => !image.folderId);
+                    }
+                    
+                    // 应用搜索筛选
+                    const searchTerm = searchInput.value.toLowerCase();
+                    if (searchTerm) {
+                        filteredImages = filteredImages.filter(image => 
+                            (image.name && image.name.toLowerCase().includes(searchTerm)) ||
+                            (image.filename && image.filename.toLowerCase().includes(searchTerm)) ||
+                            (image.description && image.description.toLowerCase().includes(searchTerm))
+                        );
+                    }
+                    
+                    // 应用分类筛选
+                    const selectedCategory = filterCategory.value;
+                    if (selectedCategory) {
+                        filteredImages = filteredImages.filter(image => image.category === selectedCategory);
+                    }
+                    
+                    return filteredImages;
+                }
+                
+                // 渲染URL列表
+                function renderUrlList() {
+                    const urlList = document.getElementById('urlList');
+                    urlList.innerHTML = '';
+                    
+                    // 获取当前文件夹中的所有图片
+                    const currentFolderImages = getCurrentFolderImages();
+                    
+                    if (currentFolderImages.length === 0) {
+                        urlList.innerHTML = '<div class="empty-state" style="padding: 20px; text-align: center; color: #a0a0b0;">当前文件夹中没有图片</div>';
+                        return;
+                    }
+                    
+                    // 为每个图片创建URL项
+                    currentFolderImages.forEach(image => {
+                        const urlItem = document.createElement('div');
+                        urlItem.className = 'url-item';
+                        
+                        // 创建缩略图
+                        const thumbnail = document.createElement('img');
+                        thumbnail.className = 'url-thumbnail';
+                        thumbnail.src = image.url;
+                        thumbnail.alt = image.name;
+                        thumbnail.onerror = function() {
+                            this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjMzMzIi8+CjxwYXRoIGQ9Ik0yMCAxNkMxNy44IDE2IDE2IDE3LjggMTYgMjBDMTYgMjIuMiAxNy44IDI0IDIwIDI0QzIyLjIgMjQgMjQgMjIuMiAyNCAyMEMyNCAxNy44IDIyLjIgMTYgMjAgMTZaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPg==';
+                        };
+                        
+                        // 创建信息区域
+                        const urlInfo = document.createElement('div');
+                        urlInfo.className = 'url-info';
+                        
+                        const filename = document.createElement('div');
+                        filename.className = 'url-filename';
+                        filename.textContent = image.name || image.filename || '未命名图片';
+                        
+                        const urlText = document.createElement('div');
+                        urlText.className = 'url-text';
+                        urlText.textContent = image.url;
+                        
+                        urlInfo.appendChild(filename);
+                        urlInfo.appendChild(urlText);
+                        
+                        // 创建复制按钮
+                        const copyBtn = document.createElement('button');
+                        copyBtn.className = 'url-copy-btn';
+                        copyBtn.textContent = '复制';
+                        copyBtn.addEventListener('click', function() {
+                            copyToClipboard(image.url);
+                        });
+                        
+                        // 组装元素
+                        urlItem.appendChild(thumbnail);
+                        urlItem.appendChild(urlInfo);
+                        urlItem.appendChild(copyBtn);
+                        
+                        urlList.appendChild(urlItem);
+                    });
+                }
+                
+                // 复制所有URL
+                function copyAllUrls() {
+                    const currentFolderImages = getCurrentFolderImages();
+                    
+                    if (currentFolderImages.length === 0) {
+                        showNotification('当前文件夹中没有图片可复制', 'warning');
+                        return;
+                    }
+                    
+                    const allUrls = currentFolderImages.map(image => image.url).join('\n');
+                    copyToClipboard(allUrls);
+                    showNotification(`已复制 ${currentFolderImages.length} 个图片URL`, 'success');
+                }
+                
                 // 调用初始化函数
                 init();
             } // initApp函数结束
@@ -4143,110 +4247,6 @@
                     toggleBtn.textContent = 'URL视图';
                     toggleBtn.classList.remove('active');
                 }
-            }
-            
-            // 渲染URL列表
-            function renderUrlList() {
-                const urlList = document.getElementById('urlList');
-                urlList.innerHTML = '';
-                
-                // 获取当前文件夹中的所有图片
-                const currentFolderImages = getCurrentFolderImages();
-                
-                if (currentFolderImages.length === 0) {
-                    urlList.innerHTML = '<div class="empty-state" style="padding: 20px; text-align: center; color: #a0a0b0;">当前文件夹中没有图片</div>';
-                    return;
-                }
-                
-                // 为每个图片创建URL项
-                currentFolderImages.forEach(image => {
-                    const urlItem = document.createElement('div');
-                    urlItem.className = 'url-item';
-                    
-                    // 创建缩略图
-                    const thumbnail = document.createElement('img');
-                    thumbnail.className = 'url-thumbnail';
-                    thumbnail.src = image.url;
-                    thumbnail.alt = image.name;
-                    thumbnail.onerror = function() {
-                        this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjMzMzIi8+CjxwYXRoIGQ9Ik0yMCAxNkMxNy44IDE2IDE2IDE3LjggMTYgMjBDMTYgMjIuMiAxNy44IDI0IDIwIDI0QzIyLjIgMjQgMjQgMjIuMiAyNCAyMEMyNCAxNy44IDIyLjIgMTYgMjAgMTZaIiBmaWxsPSIjNjY2Ii8+Cjwvc3ZnPg==';
-                    };
-                    
-                    // 创建信息区域
-                    const urlInfo = document.createElement('div');
-                    urlInfo.className = 'url-info';
-                    
-                    const filename = document.createElement('div');
-                    filename.className = 'url-filename';
-                    filename.textContent = image.name || image.filename || '未命名图片';
-                    
-                    const urlText = document.createElement('div');
-                    urlText.className = 'url-text';
-                    urlText.textContent = image.url;
-                    
-                    urlInfo.appendChild(filename);
-                    urlInfo.appendChild(urlText);
-                    
-                    // 创建复制按钮
-                    const copyBtn = document.createElement('button');
-                    copyBtn.className = 'url-copy-btn';
-                    copyBtn.textContent = '复制';
-                    copyBtn.addEventListener('click', function() {
-                        copyToClipboard(image.url);
-                    });
-                    
-                    // 组装元素
-                    urlItem.appendChild(thumbnail);
-                    urlItem.appendChild(urlInfo);
-                    urlItem.appendChild(copyBtn);
-                    
-                    urlList.appendChild(urlItem);
-                });
-            }
-            
-            // 获取当前文件夹中的所有图片
-            function getCurrentFolderImages() {
-                let filteredImages = [...imageGallery];
-                
-                // 按当前文件夹筛选
-                if (currentFolder) {
-                    filteredImages = filteredImages.filter(image => image.folderId === currentFolder);
-                } else {
-                    // 根目录显示未分配文件夹的图片
-                    filteredImages = filteredImages.filter(image => !image.folderId);
-                }
-                
-                // 应用搜索筛选
-                const searchTerm = searchInput.value.toLowerCase();
-                if (searchTerm) {
-                    filteredImages = filteredImages.filter(image => 
-                        (image.name && image.name.toLowerCase().includes(searchTerm)) ||
-                        (image.filename && image.filename.toLowerCase().includes(searchTerm)) ||
-                        (image.description && image.description.toLowerCase().includes(searchTerm))
-                    );
-                }
-                
-                // 应用分类筛选
-                const selectedCategory = filterCategory.value;
-                if (selectedCategory) {
-                    filteredImages = filteredImages.filter(image => image.category === selectedCategory);
-                }
-                
-                return filteredImages;
-            }
-            
-            // 复制所有URL
-            function copyAllUrls() {
-                const currentFolderImages = getCurrentFolderImages();
-                
-                if (currentFolderImages.length === 0) {
-                    showNotification('当前文件夹中没有图片可复制', 'warning');
-                    return;
-                }
-                
-                const allUrls = currentFolderImages.map(image => image.url).join('\n');
-                copyToClipboard(allUrls);
-                showNotification(`已复制 ${currentFolderImages.length} 个图片URL`, 'success');
             }
             
             // 在所有函数定义完成后，检查是否已登录
